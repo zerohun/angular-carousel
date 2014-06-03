@@ -14,8 +14,6 @@
             rubberTreshold = 3;
 
         var requestAnimationFrame = $window.requestAnimationFrame || $window.webkitRequestAnimationFrame || $window.mozRequestAnimationFrame;
-
-        //fallback for the browers which doesn't support requestAnimationFrame
         if(requestAnimationFrame == undefined || requestAnimationFrame == null){
           var animationQueue = [];
           requestAnimationFrame = function(frameFunc){
@@ -92,7 +90,13 @@
 
                     // add a wrapper div that will hide the overflow
                     var carousel = iElement.wrap("<div id='carousel-" + carouselId +"' class='rn-carousel-container'></div>"),
-                        container = carousel.parent();
+                        container = carousel.parent(),
+                        swipeControll = null;
+
+                    if(iAttributes.rnCarouselSwipeControll != undefined && iAttributes.rnCarouselSwipeControll != null && iAttributes.rnCarouselSwipeControll != ""){
+                       swipeControll = angular.element(document.querySelector('#' + iAttributes.rnCarouselSwipeControll));
+                    }
+
 
                     // if indicator or controls, setup the watch
                     if (angular.isDefined(iAttributes.rnCarouselIndicator) || angular.isDefined(iAttributes.rnCarouselControl)) {
@@ -215,6 +219,7 @@
                         } else {
                             carousel[0].style[transformProperty] = 'translate3d(' + move + 'px, 0, 0)';
                         }
+                        scope.$emit("swipeScroll", move);
                     }
 
                     function autoScroll() {
@@ -226,6 +231,7 @@
                             elapsed = Date.now() - timestamp;
                             delta = amplitude * Math.exp(-elapsed / timeConstant);
                             if (delta > rubberTreshold || delta < -rubberTreshold) {
+                                var offset = destination - delta
                                 scroll(destination - delta);
                                 /* We are using raf.js, a requestAnimationFrame polyfill, so
                                 this will work on IE9 */
@@ -385,7 +391,8 @@
                     iAttributes.$observe('rnCarouselSwipe', function(newValue, oldValue) {
                         // only bind swipe when it's not switched off
                         if(newValue !== 'false' && newValue !== 'off') {
-                            $swipe.bind(carousel, {
+                          swipeControll = swipeControll || carousel;
+                            $swipe.bind(swipeControll, {
                                 start: swipeStart,
                                 move: swipeMove,
                                 end: swipeEnd,
@@ -422,7 +429,9 @@
                         has3d,
                         transforms = {
                             'webkitTransform':'-webkit-transform',
+                            'OTransform':'-o-transform',
                             'msTransform':'-ms-transform',
+                            'MozTransform':'-moz-transform',
                             'transform':'transform'
                         };
                         // Add it to the body to get the computed style
@@ -461,3 +470,23 @@
     }]);
 
 })();
+
+(function() {
+    "use strict";
+
+    angular.module('angular-carousel')
+
+    .filter('carouselSlice', function() {
+        return function(collection, start, size) {
+            if (angular.isArray(collection)) {
+                return collection.slice(start, start + size);
+            } else if (angular.isObject(collection)) {
+                // dont try to slice collections :)
+                return collection;
+            }
+        };
+    });
+
+})();
+
+
