@@ -1,6 +1,6 @@
 /**
  * Angular Carousel - Mobile friendly touch carousel for AngularJS
- * @version v0.2.3 - 2014-06-03
+ * @version v1.1 - 2014-08-11
  * @link http://revolunet.github.com/angular-carousel
  * @author Julien Bouquillon <julien@revolunet.com>
  * @license MIT License, http://www.opensource.org/licenses/MIT
@@ -19,6 +19,59 @@ angular.module('angular-carousel', [
 
 angular.module('angular-carousel')
 
+.directive('rnCarouselAutoSlide', ['$timeout', function($timeout) {
+  return {
+    restrict: 'A',
+    link: function (scope, element, attrs) {
+        var delay = Math.round(parseFloat(attrs.rnCarouselAutoSlide) * 1000),
+            timer = increment = false, slidesCount = element.children().length;
+
+        if(!scope.carouselExposedIndex){
+            scope.carouselExposedIndex = 0;
+        }
+        stopAutoplay = function () {
+            if (angular.isDefined(timer)) {
+                $timeout.cancel(timer);
+            }
+            timer = undefined;
+        };
+
+        increment = function () {
+            if (scope.carouselExposedIndex < slidesCount - 1) {
+                scope.carouselExposedIndex =  scope.carouselExposedIndex + 1;
+            } else {
+                scope.carouselExposedIndex = 0;
+            }
+        };
+
+        restartTimer = function (){
+            stopAutoplay();
+            timer = $timeout(increment, delay);
+        };
+
+        scope.$watch('carouselIndex', function(){
+           restartTimer();
+        });
+
+        restartTimer();
+        if (attrs.rnCarouselPauseOnHover && attrs.rnCarouselPauseOnHover != 'false'){
+            element.on('mouseenter', stopAutoplay);
+
+            element.on('mouseleave', restartTimer);
+        }
+
+        scope.$on('$destroy', function(){
+            stopAutoplay();
+            element.off('mouseenter', stopAutoplay);
+            element.off('mouseleave', restartTimer);
+        });
+
+
+    }
+  };
+}]);
+angular.module('angular-carousel')
+
 .directive('rnCarouselControls', [function() {
   return {
     restrict: 'A',
@@ -35,13 +88,18 @@ angular.module('angular-carousel')
         if (scope.index < scope.items.length-1) scope.index++;
       };
     },
-    template: '<div class="rn-carousel-controls">' +
-                '<span class="rn-carousel-control rn-carousel-control-prev" ng-click="prev()" ng-if="index > 0"></span>' +
-                '<span class="rn-carousel-control rn-carousel-control-next" ng-click="next()" ng-if="index < items.length - 1"></span>' +
-              '</div>'
+    templateUrl: 'carousel-controls.html'
   };
 }]);
 
+angular.module('angular-carousel').run(['$templateCache', function($templateCache) {
+  $templateCache.put('carousel-controls.html',
+    '<div class="rn-carousel-controls">\n' +
+    '  <span class="rn-carousel-control rn-carousel-control-prev" ng-click="prev()" ng-if="index > 0"></span>\n' +
+    '  <span class="rn-carousel-control rn-carousel-control-next" ng-click="next()" ng-if="index < items.length - 1"></span>\n' +
+    '</div>'
+  );
+}]);
 angular.module('angular-carousel')
 
 .directive('rnCarouselIndicators', [function() {
@@ -52,10 +110,16 @@ angular.module('angular-carousel')
       items: '=',
       index: '='
     },
-    template: '<div class="rn-carousel-indicator">' +
-                '<span ng-repeat="item in items" ng-click="$parent.index=$index" ng-class="{active: $index==$parent.index}"></span>' +
-              '</div>'
+    templateUrl: 'carousel-indicators.html'
   };
+}]);
+
+angular.module('angular-carousel').run(['$templateCache', function($templateCache) {
+  $templateCache.put('carousel-indicators.html',
+      '<div class="rn-carousel-indicator">\n' +
+      ' <span ng-repeat="item in items" ng-click="$parent.index=$index" ng-class="{active: $index==$parent.index}"></span>\n' +
+      '</div>'
+  );
 }]);
 
 (function() {
@@ -74,18 +138,7 @@ angular.module('angular-carousel')
             rubberTreshold = 3;
 
         var requestAnimationFrame = $window.requestAnimationFrame || $window.webkitRequestAnimationFrame || $window.mozRequestAnimationFrame;
-        if(requestAnimationFrame == undefined || requestAnimationFrame == null){
-          var animationQueue = [];
-          requestAnimationFrame = function(frameFunc){
-            animationQueue.push(frameFunc);
-          }
-          setInterval(function(){
-            if(animationQueue.length > 0){
-              animationQueue[0]();
-              animationQueue.shift();
-            }
-          },10);
-        }
+
 
         return {
             restrict: 'A',
@@ -145,6 +198,7 @@ angular.module('angular-carousel')
                         destination,
                         slidesCount = 0,
                         swipeMoved = false,
+                        animOnIndexChange = true,
                         // javascript based animation easing
                         timestamp;
 
@@ -163,12 +217,21 @@ angular.module('angular-carousel')
                         updateIndicatorArray();
                         scope.$watch('carouselIndex', function(newValue) {
                             scope.indicatorIndex = newValue;
+                            scope.carouselExposedIndex = newValue;
                         });
                         scope.$watch('indicatorIndex', function(newValue) {
                             goToSlide(newValue, true);
                         });
 
                     }
+
+                    if (angular.isDefined(iAttributes.rnCarouselPreventAnimation)) {
+                        animOnIndexChange = false;
+                    }
+
+                    scope.$watch('carouselExposedIndex', function(newValue) {
+                        goToSlide(newValue, true);
+                    });
 
                     // enable carousel indicator
                     if (angular.isDefined(iAttributes.rnCarouselIndicator)) {
@@ -207,7 +270,7 @@ angular.module('angular-carousel')
                                         newValue = 0;
                                         updateParentIndex(newValue);
                                     }
-                                    goToSlide(newValue, true);
+                                    goToSlide(newValue, animOnIndexChange);
                                 }
                             });
                             isIndexBound = true;
@@ -273,6 +336,9 @@ angular.module('angular-carousel')
                         offset = x;
                         var move = -Math.round(offset);
                         move += (scope.carouselBufferIndex * containerWidth);
+                        if (angular.isDefined(iAttributes.rnCarouselMoveEvent)){
+                          scope.$emit("CarouselMove", -move);
+                        }
 
                         if(!is3dAvailable) {
                             carousel[0].style[transformProperty] = 'translate(' + move + 'px, 0)';
