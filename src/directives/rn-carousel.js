@@ -221,7 +221,6 @@
                         } else {
                             carousel[0].style[transformProperty] = 'translate3d(' + move + 'px, 0, 0)';
                         }
-                        scope.$emit("swipeScroll", move);
                     }
 
                     function autoScroll() {
