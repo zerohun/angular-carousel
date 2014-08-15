@@ -32,6 +32,11 @@
                 // add CSS classes
                 tElement.addClass('rn-carousel-slides');
                 tElement.children().addClass('rn-carousel-slide');
+                if(angular.isDefined(tAttributes.slideWidth) && tAttributes.slideWidth){
+                    tElement.children().css("width", tAttributes.slideWidth);
+                    tElement.children().css("margin-left", tAttributes.slideMargin);
+                    tElement.css("padding-left", tAttributes.slideMargin);
+                }
 
                 // try to find an ngRepeat expression
                 // at this point, the attributes are not yet normalized so we need to try various syntax
@@ -76,7 +81,10 @@
                         swipeMoved = false,
                         animOnIndexChange = true,
                         // javascript based animation easing
-                        timestamp;
+                        timestamp,
+                        customSlideWidthPer,
+                        customSlideMarginPer;
+
 
                     // add a wrapper div that will hide the overflow
                     var carousel = iElement.wrap("<div id='carousel-" + carouselId +"' class='rn-carousel-container'></div>"),
@@ -85,6 +93,11 @@
 
                     if(iAttributes.rnCarouselSwipeControll != undefined && iAttributes.rnCarouselSwipeControll != null && iAttributes.rnCarouselSwipeControll != ""){
                        swipeControll = angular.element(document.querySelector('#' + iAttributes.rnCarouselSwipeControll));
+                    }
+
+                    if(angular.isDefined(iAttributes.slideWidth) && iAttributes.slideWidth){
+                        customSlideWidthPer = Number(iAttributes.slideWidth.replace("%", ""));
+                        customSlideMarginPer = Number(iAttributes.slideMargin.replace("%", ""));
                     }
 
 
@@ -198,6 +211,10 @@
                         // force the carousel container width to match the first slide width
                         container.css('width', '100%');
                         var width = getCarouselWidth();
+                        if(customSlideWidthPer){
+                            width = width / customSlideWidthPer * 100;
+                            containerWidth = containerWidth / customSlideWidthPer * (customSlideWidthPer + customSlideMarginPer);
+                        }
                         if (width) {
                             container.css('width', width + 'px');
                         }
