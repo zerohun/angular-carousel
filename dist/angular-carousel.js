@@ -460,6 +460,7 @@ angular.module('angular-carousel').run(['$templateCache', function($templateCach
                     function swipeStart(coords, event) {
                         //console.log('swipeStart', coords, event);
                         $document.bind('mouseup', documentMouseUpEvent);
+                        if (!containerWidth) updateContainerWidth();
                         pressed = true;
                         startX = coords.x;
 
